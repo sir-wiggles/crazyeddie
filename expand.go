@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"log"
@@ -16,11 +17,13 @@ const (
 	TAR_GZ string = ".tar.gz"
 	GZ     string = ".gz"
 	TAR    string = ".tar"
+	XML    string = ".xml"
+	PDF    string = ".pdf"
 )
 
 var (
 	// order matters here. Must check tar.gz before gz
-	extensions = []string{ZIP, TAR_GZ, GZ, TAR}
+	extensions = []string{ZIP, TAR_GZ, GZ, TAR, XML}
 )
 
 func init() {
@@ -29,8 +32,8 @@ func init() {
 
 func main() {
 	var (
-		publisher string = "nas"
-		filename  string = "nas.xml"
+		publisher string = "arxiv"
+		filename  string = fmt.Sprintf("./struct/%s/%s.tar", publisher, publisher)
 	)
 
 	if err := Expand(publisher, filename); err != nil {
@@ -47,15 +50,22 @@ func Expand(publisher, filename string) error {
 
 	switch reader.(type) {
 	case *tar.Reader:
+		err = HandleTAR(publisher, reader.(*tar.Reader))
 
 	case *gzip.Reader:
+		decoder := xml.NewDecoder(reader.(*gzip.Reader))
+		err = HandleXML(publisher, decoder)
 
 	case *zip.Reader:
+		log.Println("zip case not implemented")
+
+	case *os.File:
+		decoder := xml.NewDecoder(reader.(*os.File))
+		err = HandleXML(publisher, decoder)
 
 	default:
 		return errors.New(fmt.Sprintf("Expand got invalid type (%T)", reader))
 	}
-	err := Parse(publisher, nil)
 
 	return err
 }
@@ -79,14 +89,21 @@ func decompress(filename string) (interface{}, error) {
 		}
 
 		switch ext {
+
 		case ZIP:
 			reader, err = unzip(file)
+
 		case GZ:
 			reader, err = ungzip(file)
+
 		case TAR:
 			reader, err = untar(file)
+
 		case TAR_GZ:
 			reader, err = untargz(file)
+
+		case XML:
+			return file, nil
 		}
 
 		if err != nil {

@@ -19,6 +19,7 @@ var decompressTest = map[string]func(*testing.T) string{
 	"gzip":   gzipFile,
 	"tar":    tarFile,
 	"tar.gz": tarGzFile,
+	"xml":    normal,
 }
 
 func TestDecompress(t *testing.T) {
@@ -51,12 +52,25 @@ func TestDecompress(t *testing.T) {
 				}
 				log.Println(h)
 			}
+		case *os.File:
+			r := reader.(*os.File)
+			log.Println(r)
 
 		default:
 			log.Printf("%T", reader)
 		}
 	}
+}
 
+func normalFile(t *testing.T) string {
+	file, err := tempFile("xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	file.Write([]byte("normal file"))
+	return file.Name()
 }
 
 func tarFile(t *testing.T) string {
